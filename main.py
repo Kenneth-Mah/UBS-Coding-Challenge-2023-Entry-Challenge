@@ -8,3 +8,10 @@ def getNextProbableWords(classes: List[Dict],
   for someclass in classes:
     classname = someclass.get
   return {}
+
+# Create a dictionary to store the probable words for each statement
+    probable_words = {}
+
+#prob interate thru the words.
+for words in statements:
+  
