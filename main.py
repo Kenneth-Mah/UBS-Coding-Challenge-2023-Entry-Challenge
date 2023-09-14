@@ -1,58 +1,68 @@
 from typing import Dict, List
 
-def getNextProbableWords(classes: List[Dict], statements: List[str]) -> Dict[str, List[str]]:
-    # Create a dictionary to store class definitions
-    class_definitions = {}
+
+def getNextProbableWords(classes: List[Dict],
+                         statements: List[str]) -> Dict[str, List[str]]:
+    # Convert the list of dictionaries into a single dictionary for easier access
+    class_dict = {}
     for class_def in classes:
-        for class_name, attributes in class_def.items():
-            class_definitions[class_name] = attributes
+        for key, value in class_def.items():
+            class_dict[key] = value
 
-    # Create a dictionary to store probable words for statements
-    probable_words = {}
+    def get_next_words(class_name, partial=""):
+        # If the class name is not in the dictionary, return an empty list
+        if class_name not in class_dict:
+            return [""]
 
-    # Process each statement
+        # Fetch the definition of the class
+        class_def = class_dict[class_name]
+
+        # If it's an empty class, return an empty list
+        if class_def == "":
+            return [""]
+
+        # If it's a dictionary, return the keys that match the partial word
+        if isinstance(class_def, dict):
+            matching_keys = [
+                key for key in class_def.keys() if key.startswith(partial)
+            ]
+
+            # If the matching key is a polymorphic type, return an empty list
+            if len(matching_keys) == 1 and "List<" in class_def[
+                    matching_keys[0]]:
+                return [""]
+
+            return sorted(matching_keys)[:5]
+
+        # If it's a list, determine if it's an enum or a polymorphic type
+        if isinstance(class_def, list):
+            # Check the first element of the list to determine the type
+            first_element = class_def[0]
+
+            # If it's a string and not a class name, it's an enum
+            if isinstance(first_element,
+                          str) and first_element not in class_dict:
+                matching_enums = [
+                    key for key in class_def if key.startswith(partial)
+                ]
+                return sorted(matching_enums)[:5]
+
+            # If it's a string and a class name, it's a polymorphic type
+            if isinstance(first_element, str) and first_element in class_dict:
+                return [""]
+
+        return [""]
+
+    results = {}
     for statement in statements:
-        # Split the statement into class and variable
-        parts = statement.split(".")
-        class_name = parts[0]  # The first part is always the class name
-        variable = ".".join(parts[1:])  # Join all remaining parts as the variable
+        parts = statement.split('.')
 
-        # Initialize a list to store probable words
-        probable_word_list = []
+        # Get the class name (always the first part of the statement)
+        class_name = parts[0]
 
-        # Check if the class exists in class_definitions
-        if class_name in class_definitions:
-            attributes = class_definitions[class_name]
+        # If there's a partial word, it's the second part of the statement
+        partial = parts[1] if len(parts) > 1 else ""
 
-            # Handle an empty class (Case 1)
-            if attributes == "":
-                probable_word_list.append("")
+        results[statement] = get_next_words(class_name, partial)
 
-            # Handle a class containing key-value pairs (Case 2)
-            elif isinstance(attributes, dict):
-                if variable == "":
-                    # Return all keys for this case
-                    probable_word_list.extend(attributes.keys())
-                elif variable in attributes:
-                    # Check if the variable exists as a key in the class
-                    probable_word_list.append(attributes[variable])
-
-            # Handle a list of strings (Case 3)
-            elif isinstance(attributes, list):
-                if variable == "":
-                    # Return all items in the list for this case
-                    probable_word_list.extend(attributes)
-                elif variable in attributes:
-                    # Check if the variable exists in the list (polymorphic type)
-                    probable_word_list.append("")
-
-        # Sort the probable words in ascending alphabetical order
-        probable_word_list.sort()
-
-        # Limit the list to at most 5 words
-        probable_word_list = probable_word_list[:5]
-
-        # Store the probable words for this statement
-        probable_words[statement] = probable_word_list
-
-    return probable_words
+    return results
